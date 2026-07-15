@@ -47,7 +47,7 @@ class GPT2Model(GPTPreTrainedModel):
     input_shape = input_ids.size()
     seq_length = input_shape[1]
 
-    print(f"Input ids shape: {input_ids.shape}")
+    # print(f"Input ids shape: {input_ids.shape}")
     inputs_embeds = self.word_embedding(input_ids)
 
 

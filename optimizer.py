@@ -103,8 +103,8 @@ class AdamW(Optimizer):
                     state["exp_avg"] = torch.zeros_like(p.data)
                     state["exp_avg_sq"] = torch.zeros_like(p.data)
                 
-                if state["step"] % 100 == 0:
-                    print(f"optimizer state value: {state}")
+                # if state["step"] % 100 == 0:
+                #     print(f"optimizer state value: {state}")
                 
                 # Update state variables: Steps, First moment and Second moment.
                 state["step"] += 1
