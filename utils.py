@@ -13,7 +13,7 @@ from pathlib import Path
 import requests
 from hashlib import sha256
 from filelock import FileLock
-import importlib_metadata
+import importlib.metadata as importlib_metadata
 import torch
 import torch.nn as nn
 from torch import Tensor
