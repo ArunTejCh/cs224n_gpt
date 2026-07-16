@@ -51,7 +51,8 @@ class ParaphraseGPT(nn.Module):
   def __init__(self, args):
     super().__init__()
     self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads)
-    self.paraphrase_detection_head = nn.Linear(args.d, 2)  # Paraphrase detection has two outputs: 1 (yes) or 0 (no).
+    # Don't need linear head as we are training for the vocab yes/no token ids
+    # self.paraphrase_detection_head = nn.Linear(args.d, 2)  # Paraphrase detection has two outputs: 1 (yes) or 0 (no).
 
     # By default, fine-tune the full model.
     for param in self.gpt.parameters():
@@ -71,8 +72,9 @@ class ParaphraseGPT(nn.Module):
     """
 
     'Takes a batch of sentences and produces embeddings for them.'
-    ### YOUR CODE HERE
-    raise NotImplementedError
+    gpt_output = self.gpt(input_ids, attention_mask)
+    token_id_distribution_logits = self.gpt.hidden_state_to_token(gpt_output["last_token"])
+    return token_id_distribution_logits
 
 
 
@@ -92,10 +94,16 @@ def save_model(model, optimizer, args, filepath):
 
 def train(args):
   """Train GPT-2 for paraphrase detection on the Quora dataset."""
-  device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+  device = torch.device('cuda') if args.use_gpu else torch.device('mps')
   # Create the data and its corresponding datasets and dataloader.
   para_train_data = load_paraphrase_data(args.para_train)
   para_dev_data = load_paraphrase_data(args.para_dev)
+
+  # For quick end-to-end smoke tests: cap the number of train (and dev) examples.
+  if args.num_train_examples > 0:
+    para_train_data = para_train_data[:args.num_train_examples]
+    para_dev_data = para_dev_data[:args.num_train_examples]
+    print(f"[smoke test] Limiting to {len(para_train_data)} train / {len(para_dev_data)} dev examples")
 
   para_train_data = ParaphraseDetectionDataset(para_train_data, args)
   para_dev_data = ParaphraseDetectionDataset(para_dev_data, args)
@@ -150,7 +158,7 @@ def train(args):
 @torch.no_grad()
 def test(args):
   """Evaluate your model on the dev and test datasets; save the predictions to disk."""
-  device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
+  device = torch.device('cuda') if args.use_gpu else torch.device('mps')
   saved = torch.load(args.filepath)
 
   model = ParaphraseGPT(saved['args'])
@@ -197,6 +205,8 @@ def get_args():
   parser.add_argument("--seed", type=int, default=11711)
   parser.add_argument("--epochs", type=int, default=10)
   parser.add_argument("--use_gpu", action='store_true')
+  parser.add_argument("--num_train_examples", type=int, default=0,
+                      help="For smoke tests: cap the number of training (and dev) examples used. 0 = use all.")
 
   parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
   parser.add_argument("--lr", type=float, help="learning rate", default=1e-5)
@@ -232,4 +242,4 @@ if __name__ == "__main__":
   args.filepath = f'{args.epochs}-{args.lr}-paraphrase.pt'  # Save path.
   seed_everything(args.seed)  # Fix the seed for reproducibility.
   train(args)
-  test(args)
+  # test(args)
